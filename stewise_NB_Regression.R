@@ -4,6 +4,9 @@ library(ggplot2)
 #
 # negative binomial regression model for the analysis of the influence of ER, ST, TEA, AI and NRC [explanation below]
 # on the number campaigns conducted 
+#####################################
+# data will change !
+#####################################
 #
 # get the data
 # Turkey already excluded
@@ -22,9 +25,19 @@ tapply(NRC, ER, summary)
 #
 # Correlaton matrix plot
 #
+library(lattice)
 scatterplotMatrix(~Y+log(ST)+TEA+AI+log(NRC) | ER, reg.line=FALSE, smoother=FALSE)
 #
+# This is the answer to question (8) of reviewer 2
+#  He stated that TEA is calculated from SVA and ST
+#  SVA is now excluded from the model.
+#
+# Variables ST and NRC are log transformed!!
+#
 # Correlations between influential variables
+# AI is NOT significantly correlated to log.ST, TEA. 
+# There is a tendency that AI is negatively correlated to log.NRC
+# 
 #
 library(Hmisc)
 d <- data.frame(log(ST),TEA,AI,log(NRC))
@@ -39,16 +52,18 @@ rcorr(df, type="spearman")
 #   ST  : size of territory (km^2)
 #   TEA : territory ever affected (km^2)
 #   AI  : area index
-#   NRC : number of rabies cases
+#   NRC : number of rabies cases at the beginning of ORV
 #
-# negative binomial model
+# negative binomial model with and without log transformed data
+#  log transformed data produce a better fit
 #
 summary(nbFit <- glm.nb(Y ~ (ER + ST + TEA + AI + NRC), data = data))
+summary(nbFit.log <- glm.nb(Y ~ (ER + log(ST) + TEA + AI + log(NRC)), data = data))
 #
 # analyse the effect of ER
 #
-nbFit_wo_ER <- update(nbFit, . ~ . -ER)
-anova(nbFit, nbFit_wo_ER)
+nbFit_wo_ER.log <- update(nbFit.log, . ~ . -ER)
+anova(nbFit.log, nbFit_wo_ER.log)
 #
 # why not use the poisson model?
 #
@@ -56,29 +71,42 @@ anova(nbFit, nbFit_wo_ER)
 # constant.
 #
 summary(poiFit <- glm(Y ~ (ER + ST + TEA + AI + NRC), family = poisson, data = data))
+summary(poiFit.log <- glm(Y ~ (ER + log(ST) + TEA + AI + log(NRC)), family = poisson, data = data))
+##############################
+# Compare all AIC copied from the results screen
+# negBin      AIC: 200.55  
+# negBin.log  AIC: 197.44 <===
+# poi         AIC: 246.15
+# poi.log     AIC: 230.04
+##############################
 #
 # Compare the negative binomial to the poission model
+#  This is to answer question 8 of reviewer 2 
+#  The negbin is superior to the poi model.
+#  The difference is significant!
 #
-chi <- 2 * (logLik(nbFit) - logLik(poiFit))
+chi <- 2 * (logLik(nbFit.log) - logLik(poiFit.log))
 chi
 pchisq(chi, df = 1, lower.tail = FALSE)
 #
-# Conclusion
-# the negative binomial is superior to the poisson regression model
 #
+# Goodness of fit of negbin
+# Conclusion: The model fits the data
 #
-#
-# Goodness of fit
-#
-with(nbFit, cbind(res.deviance = deviance, df=df.residual, p = pchisq(deviance, df.residual, lower.tail=FALSE)))
+with(nbFit.log, cbind(res.deviance = deviance, df=df.residual, p = pchisq(deviance, df.residual, lower.tail=FALSE)))
 #
 # include and test 2nd order interactions for nbFit model 
 #
-stepNb <- stepAIC(nbFit,~.^2, direction="both")
+stepNb <- stepAIC(nbFit.log,~.^2, direction="both")
 stepNb$anova
 summary(stepNb)
 #
+# Conclusion: ER (eradication status [finsihed / not finished]) is out!
+# AIC: 196.28
+# 
+#
 # goodness of fit
+# the model fits the data
 #
 with(stepNb, cbind(res.deviance = deviance, df=df.residual, p = pchisq(deviance, df.residual, lower.tail=FALSE)))
 #
@@ -95,6 +123,12 @@ predictedERconfint <- within(predictedER, {
   UL <- fit+1.96*se.fit
 })
 predictedERconfint
+#
+#######################
+# Grafics have to be reshaped because ER is now out!
+#  BUT I WAIT FOR THE NEW DATA !
+# code below will not run
+#######################
 #
 # Grafiken
 # Einfluss des Area Index
