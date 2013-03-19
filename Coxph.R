@@ -43,6 +43,13 @@ attach(data4surv)
 so <- Surv(Y, Censor, type='right')
 so
 
+
+#Create censoring for control
+Censor2=ifelse(!is.na(ORV_2_C90), TRUE, FALSE)
+YC=replace(ORV_2_C90, which(is.na(ORV_2_C90)), Y[which(is.na(ORV_2_C90))])
+s2 <- Surv(Y, Censor2, type='right')
+s2
+
 #
 # null model
 null.model <- coxph(so~1)
@@ -76,3 +83,50 @@ OIF.Tea <- data.frame(TEA=c(min(TEA),max(TEA)),AI=rep(median(AI),2),
 plot(survfit(phm_f, newdata=OIF.Tea), conf.int=TRUE, lty=c(1,2))
 legend(locator(1), legend=c('TEA=0.016', 'TEA=1.00'), lty=c(1,2))
 summary(survfit(phm_f, newdata=OIF.Tea))
+
+
+
+
+###########################################################
+#REPEAT FOR CONTROL DATA
+## null model
+null.model.control <- coxph(s2~1)
+summary(null.model.control)
+s.model.control <- coxph(s2~AI+TEA+log(SVA))
+summary(s.model.control)
+#
+# fit Coxph model in both directions. This time I want to restrict model
+# parameters within interval [0,1]. This is achived with the logit transformation.
+# interactions of order 2 are allowed
+#
+phm_e_control=coxph(s2~1, method="efron")
+phm_f_control=stepAIC(phm_e_control,Scope,direction="both")
+summary(phm_f_control)
+plot(survfit(phm_f_control))
+#
+# plots for diferent figures of AI (min and max)
+#
+plot(survfit(phm_f_control, newdata=OIF.Ai), conf.int=TRUE, lty=c(1,2),
+     xlab="number of Campaigns", ylab="p(eradication not finsihed)")
+legend(locator(1), legend=c('AI=0.016', 'AI=1.00'), lty=c(1,2))
+#
+# plots for diferent figures of TEA (min and max)
+OIF.Tea <- data.frame(TEA=c(min(TEA),max(TEA)),AI=rep(median(AI),2),
+                      xlab="number of Campaigns", ylab="p(eradication not finsihed)")
+plot(survfit(phm_f_control, newdata=OIF.Tea), conf.int=TRUE, lty=c(1,2))
+legend(locator(1), legend=c('TEA=0.016', 'TEA=1.00'), lty=c(1,2))
+summary(survfit(phm_f_control, newdata=OIF.Tea))
+
+#Compare elimination versus control
+plot(survfit(phm_f), xlim=c(0,70), conf.int=TRUE)
+lines(survfit(phm_f_control), col="red", conf.int=TRUE)
+
+plot(survfit(phm_f, newdata=OIF.Ai), conf.int=TRUE, lty=c(1,2),
+     xlab="number of Campaigns", ylab="p(rabies not eliminated")
+legend(locator(1), legend=c('AI=0.016', 'AI=1.00'), lty=c(1,2))
+
+lines(survfit(phm_f_control, newdata=OIF.Ai), conf.int=TRUE, lty=c(1,2), col="red")
+
+plot(survfit(phm_f, newdata=OIF.Tea), conf.int=TRUE, lty=c(1,2))
+legend(locator(1), legend=c('TEA=0.016', 'TEA=1.00'), lty=c(1,2))
+lines(survfit(phm_f_control, newdata=OIF.Tea), conf.int=TRUE, lty=c(1,2), col="red")
